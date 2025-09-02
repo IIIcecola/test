@@ -41,7 +41,7 @@ for episode_idx in "${episode_idxs[@]}"; do
     #     view_dir="$episode_output_dir/$view/images"
     #     normal_output_dir="${episode_output_dir}/${view}/mono_normal"
     #     uv run script/run_mono_normal.py \
-    #         --pretrained_model_name_or_path="jingheya/lotus-normal-g-v1-0" \
+    #         --pretrained_model_name_or_path="jingheya/lotus-normal-g-v1-0" \ # 或者本地路径
     #         --prediction_type="sample" \
     #         --task_name="normal" \
     #         --mode="generation" \
