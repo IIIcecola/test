@@ -7,8 +7,8 @@ import numpy as np
 
 class BlackRemover:
     def __init__(self, threshold: int = 30, border_width: int = 5):
-        self.threshold: int = threshold
-        self.border_width: int = border_width
+        self.threshold: int = threshold  # 亮度阈值（0-255），默认30。低于此值视为黑色像素
+        self.border_width: int = border_width  # 边缘检测宽度，默认5像素。检测图像四边时取此范围内的像素
 
     def start(self, img_path: Optional[Union[str, Path]] = None,
               img_array: Optional[np.ndarray] = None) -> tuple[int, int, int, int]:
@@ -53,9 +53,9 @@ class BlackRemover:
         # 计算平均亮度阈值
         # mean_threshold = np.mean(gray)
 
-        _, binary = cv2.threshold(gray, self.threshold, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, binary = cv2.threshold(gray, self.threshold, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU) # binary是二值化地图（0=黑，255=白）
         # binary = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 2)
-        kernel = np.ones((5, 5), np.uint8)
+        kernel = np.ones((5, 5), np.uint8) # 形态核大小，可以根据噪声尺寸调整
 
         binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
 
@@ -69,8 +69,8 @@ class BlackRemover:
 
         # 遍历所有连通区域
         for i in range(1, num_labels):
-            # 如果该连通区域的大小大于阈值，则保留该区域
-            if stats[i, cv2.CC_STAT_AREA] > 1500:  # 500是阈值，可以根据实际情况调整
+            # 如果该连通区域的大小大于阈值，则保留该区域。连通区域面积阈值（1500）需等比放大
+            if stats[i, cv2.CC_STAT_AREA] > 1500:  # 1500是阈值，可以根据实际情况调整
                 new_binary[labels == i] = 255
 
         # 找出图像中的轮廓
