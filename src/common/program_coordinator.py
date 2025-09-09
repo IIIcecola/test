@@ -29,12 +29,12 @@ import loguru
 from src.common.black_remove_algorithm.black_remove_algorithm import BlackRemoveAlgorithm
 from src.common.black_remove_algorithm.img_black_remover import IMGBlackRemover
 from src.common.black_remove_algorithm.video_remover import VideoRemover
-from src.common.processors.processor_global_var import ProcessorGlobalVar
-from src.common.task_resumer.task_resumer import TaskResumer
-from src.common.task_resumer.task_resumer_manager import TaskResumerManager
-from src.common.video_handler import VideoHandler
+from src.common.processors.processor_global_var import ProcessorGlobalVar # 全局变量处理器
+from src.common.task_resumer.task_resumer import TaskResumer 
+from src.common.task_resumer.task_resumer_manager import TaskResumerManager # 任务恢复管理器
+from src.common.video_handler import VideoHandler # 视频处理核心类*
 from src.common.video_info_reader import VideoInfoReader
-from src.config import BlackBorderAlgorithm, VideoProcessEngine, VideoResolution, cfg
+from src.config import BlackBorderAlgorithm, VideoProcessEngine, VideoResolution, cfg # *
 from src.core.datacls import VideoInfo
 from src.core.enums import Orientation, Rotation
 from src.signal_bus import SignalBus
@@ -52,8 +52,11 @@ class ProgramCoordinator:
 
     @loguru.logger.catch(reraise=True)
     def process(self, input_video_path_list: list[Path], orientation: Orientation, rotation: Rotation) -> Path | None:
+        # 输入：input_video_path_list: 待处理视频路径列表；orientation: 视频方向（横屏/竖屏）；rotation: 旋转角度
+        # 输出：返回值​​: 输出目录路径
         # sourcery skip: low-code-quality
-        self._processor_global_var.clear()
+        # 清空全局变量，存储方向和旋转信息
+        self._processor_global_var.clear() 
         self._processor_global_var.update('orientation', orientation)
         self._processor_global_var.update('rotation_angle', rotation.value)
         self._task_resumer_manager.clear()
@@ -64,24 +67,25 @@ class ProgramCoordinator:
         self._signal_bus.set_total_progress_max.emit(len(input_video_path_list))
         self._signal_bus.set_total_progress_description.emit("分析视频")
 
-        # 将所有任务设置为未完成
+        # 将所有任务设置为未完成。为每个视频创建任务记录器，保存任务状态（支持断点续处理）
         for each_resumer in input_video_path_list:
             task_resumer = TaskResumer(each_resumer)
             self._task_resumer_manager.append_task(task_resumer)
         self._task_resumer_manager.save()
 
-        # 读取视频信息
+        # 读取视频信息，
         black_remove_algorithm_impl = self._get_black_remove_algorithm()
         video_info_list: list[VideoInfo] = []
         finished_video_path_list: list[Path] = []
         for each_path in input_video_path_list:
-            video_info = VideoInfoReader(each_path).get_video_info(black_remove_algorithm_impl)
+            video_info = VideoInfoReader(each_path).get_video_info(black_remove_algorithm_impl) # 返回VideoInfo格式数据
             loguru.logger.debug(video_info)
             video_info_list.append(video_info)
 
             self._signal_bus.advance_total_progress.emit(1)
 
-        target_width, target_height = self._get_video_resolution(video_info_list, orientation)
+        target_width, target_height = self._get_video_resolution(video_info_list, orientation) # 根据配置计算最佳输出分辨率
+        # 存储到全局变量
         self._processor_global_var.get_data()['target_width'] = target_width
         self._processor_global_var.get_data()['target_height'] = target_height
         self._signal_bus.set_total_progress_finish.emit()
@@ -93,24 +97,24 @@ class ProgramCoordinator:
         self._signal_bus.set_total_progress_description.emit("处理视频")
         self._signal_bus.set_total_progress_max.emit(len(video_info_list))
 
-        # 逐个处理视频
-        is_merge: bool = cfg.get(cfg.merge_video)
+        # 逐个处理未完成视频
+        is_merge: bool = cfg.get(cfg.merge_video) # *
         for index, each_resumer in enumerate(self._task_resumer_manager.uncompleted_task_list):
             video_info: VideoInfo = video_info_list[index]
-            output_file_path = self._process_single_video(each_resumer, finished_video_path_list, video_info)
+            output_file_path = self._process_single_video(each_resumer, finished_video_path_list, video_info) # 调用_process_single_video处理单个视频
             if not is_merge:
                 move_file_to_output_dir([output_file_path])
                 loguru.logger.debug(f'已完成视频{output_file_path}的处理,已移动到输出目录')
 
-        if is_merge:
+        if is_merge: # 可选视频合并功能
             finished_video_path = self._video_handler.merge_videos(finished_video_path_list)
             finished_video_path_list.clear()
             finished_video_path_list.append(finished_video_path)
 
-            move_file_to_output_dir(finished_video_path_list)
+            move_file_to_output_dir(finished_video_path_list) # 移动文件到输出目录
 
         output_dir: Path = Path(cfg.get(cfg.output_dir))
-        os.startfile(output_dir)
+        os.startfile(output_dir) # 自动打开输出文件夹
 
         self._signal_bus.set_total_progress_finish.emit()
         self._signal_bus.set_detail_progress_finish.emit()
@@ -128,7 +132,7 @@ class ProgramCoordinator:
         self._processor_global_var.get_data()['total_frames'] = video_info.frame_count
         self._processor_global_var.get_data()['width'] = video_info.width
         self._processor_global_var.get_data()['height'] = video_info.height
-        if video_info.crop:
+        if video_info.crop: # 自定义函数
             self._update_processor_global_var_with_crop_info(video_info.crop.x,
                                                              video_info.crop.y,
                                                              video_info.crop.w,
@@ -136,11 +140,11 @@ class ProgramCoordinator:
         else:
             self._update_processor_global_var_with_crop_info()
         engine_type: VideoProcessEngine = cfg.get(cfg.video_process_engine)
-        finished_video_path: Path = self._video_handler.process_video(video_info.video_path, engine_type)
+        finished_video_path: Path = self._video_handler.process_video(video_info.video_path, engine_type) # # 处理视频*
         finished_video_path_list.append(finished_video_path)
         each_resumer.output_video_path = finished_video_path  # 每一个已经处理完成的视频的路径,用来任务判断是否完成
         self._signal_bus.advance_total_progress.emit(1)
-        self._task_resumer_manager.save()
+        self._task_resumer_manager.save() # 更新任务状态
         loguru.logger.info(f'处理视频{video_info.video_path}完成')
         return finished_video_path
 
@@ -201,7 +205,7 @@ class ProgramCoordinator:
             loguru.logger.info(f'最佳分辨率获取完成,最佳分辨率为: {best_width}x{best_height}')
             return best_width, best_height
 
-        resolution_mode: VideoResolution = cfg.get(cfg.video_resolution)
+        resolution_mode: VideoResolution = cfg.get(cfg.video_resolution) # *
         match resolution_mode:
             case VideoResolution.Auto:
                 return get_best_resolution(video_info_list, video_orientation)
