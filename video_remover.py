@@ -29,10 +29,10 @@ class VideoRemover:
             # 计算帧差异
             diff = cv2.absdiff(frame1, frame2)
             gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
-            blur = cv2.GaussianBlur(gray, (5, 5), 0)
+            blur = cv2.GaussianBlur(gray, (5, 5), 0) # 高斯模糊核
             _, thresh = cv2.threshold(blur, 20, 255, cv2.THRESH_BINARY)
 
-            kernel = np.ones((5, 5), np.uint8)
+            kernel = np.ones((5, 5), np.uint8) # 形态核
 
             binary = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
 
@@ -47,18 +47,18 @@ class VideoRemover:
             # 遍历所有连通区域
             for i in range(1, num_labels):
                 # 如果该连通区域的大小大于阈值，则保留该区域
-                if stats[i, cv2.CC_STAT_AREA] > 1500:  # 500是阈值，可以根据实际情况调整
+                if stats[i, cv2.CC_STAT_AREA] > 1500:  # 1500是阈值，可以根据实际情况调整
                     new_binary[labels == i] = 255
 
             # 找到轮廓
             contours, _ = cv2.findContours(new_binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
             for contour in contours:
-                if cv2.contourArea(contour) < 500:
+                if cv2.contourArea(contour) < 500: # 过滤小面积噪声
                     continue
                 x, y, w, h = cv2.boundingRect(contour)
-                cv2.rectangle(frame1, (x, y), (x + w, y + h), (255, 255, 255), -1)
-                cv2.rectangle(accumulated_changes, (x, y), (x + w, y + h), 255, -1)
+                cv2.rectangle(frame1, (x, y), (x + w, y + h), (255, 255, 255), -1) # 在当前帧可视化（调试用）
+                cv2.rectangle(accumulated_changes, (x, y), (x + w, y + h), 255, -1) # 累积到变化图
 
             frame1 = frame2
             ret, frame2 = cap.read()
