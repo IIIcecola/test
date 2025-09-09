@@ -1,0 +1,43 @@
+from pathlib import Path
+
+from src.common.ffmpeg_handler import FFmpegHandler
+from src.common.processors.base_processor import AudioProcessor
+from src.config import AudioNoiseReduction, AudioNormalization, AudioSampleRate, cfg
+
+
+class AudioFFmpegProcessor(AudioProcessor):
+    # 使用 FFmpeg 工具来处理音频文件，包括降噪、标准化和重新采样等功能。代码基于配置动态应用不同的音频过滤器，适合处理视频编辑或音频增强场景。
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._ffmpeg_handler = FFmpegHandler()
+
+    def process(self, input_wav_path: Path) -> Path:
+        # ​​功能​​：处理输入的音频文件，应用配置的过滤器，并返回处理后的文件路径。这是类的主要方法。
+        # ​​输入​​：input_wav_path: Path– 输入音频文件的路径（必须是 WAV 格式）。类型提示 Path确保输入是有效的路径对象。
+​​        # 输出​​：-> Path– 返回处理后的音频文件路径（也是 Path 对象）
+        audio_filters: list[str] = []
+
+        # 音频降噪
+        audio_noise_reduction_mode: AudioNoiseReduction = cfg.get(cfg.audio_noise_reduction)
+        if audio_noise_reduction_mode == AudioNoiseReduction.AI:
+            audio_filters.append(f"{audio_noise_reduction_mode.value}".replace('\\', '/'))
+        elif audio_noise_reduction_mode == AudioNoiseReduction.Static:
+            audio_filters.append(audio_noise_reduction_mode.value)
+
+        # 音频标准化
+        audio_normalization: AudioNormalization = cfg.get(cfg.audio_normalization)
+        if audio_normalization != AudioNormalization.Disable:
+            audio_filters.append(audio_normalization.value)
+
+        # 音频重新采样
+        audio_sample_rate: AudioSampleRate = cfg.get(cfg.audio_sample_rate)
+        audio_filters.append(
+            f"aresample={audio_sample_rate.value}:resampler=soxr:precision=28:osf=s16:dither_method=triangular")
+
+        return self._ffmpeg_handler.audio_process(input_wav_path, audio_filter=audio_filters)
+
+
+if __name__ == '__main__':
+    processor = AudioFFmpegProcessor()
+    print(processor.process(Path(r"E:\load\python\Project\VideoFusion\TempAndTest\dy\v\1\视频(1)_out.wav")))
+    print("降噪完成")
