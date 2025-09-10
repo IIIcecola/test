@@ -114,7 +114,7 @@ class ProgramCoordinator:
             move_file_to_output_dir(finished_video_path_list) # 移动文件到输出目录
 
         output_dir: Path = Path(cfg.get(cfg.output_dir))
-        os.startfile(output_dir) # 自动打开输出文件夹
+        os.startfile(output_dir) # 自动打开输出文件夹(windows) # print(f"处理完成！输出文件在：{output_dir}") 
 
         self._signal_bus.set_total_progress_finish.emit()
         self._signal_bus.set_detail_progress_finish.emit()
@@ -174,13 +174,16 @@ class ProgramCoordinator:
     def _get_video_resolution(self,
                               video_info_list: list[VideoInfo],
                               video_orientation: Orientation) -> tuple[int, int]:
+    # 为所有输入视频确定一个统一的目标输出分辨率​​，而不是为每个视频单独计算不同的分辨率。
         def get_best_resolution(video_info_list: list[VideoInfo],
                                 video_orientation: Orientation) -> tuple[int, int]:
             def get_most_compatible_resolution(video_info_list: list[VideoInfo],
                                                orientation: Orientation) -> tuple[int, int]:
                 """获取最合适的视频分辨率"""
                 resolutions: list[tuple[int, int]] = []
+                # 获取每个视频的有效分辨率
                 for each in video_info_list:
+                    # 优先使用裁剪后的分辨率（crop.w和 crop.h）,如果视频未被裁剪，则使用原始分辨率（width和 height）
                     width, height = (each.crop.w, each.crop.h) if each.crop else (each.width, each.height)
 
                     # 判断视频的方向,如果视频的方向和用户选择的方向不一致则需要调换宽高
@@ -190,11 +193,11 @@ class ProgramCoordinator:
                     else:
                         resolutions.append((height, width))
 
-                aspect_ratios: list[float] = [i[0] / i[1] for i in resolutions]
-                most_common_ratio = Counter(aspect_ratios).most_common(1)[0][0]
-                compatible_resolutions = [res for res in resolutions if (res[0] / res[1]) == most_common_ratio]
-                compatible_resolutions.sort(key=lambda x: (x[0] * x[1]), reverse=True)
-                width, height = compatible_resolutions[0][:2]
+                aspect_ratios: list[float] = [i[0] / i[1] for i in resolutions] # 计算所有视频的宽高比
+                most_common_ratio = Counter(aspect_ratios).most_common(1)[0][0] # 找出最常见的宽高比
+                compatible_resolutions = [res for res in resolutions if (res[0] / res[1]) == most_common_ratio] # 筛选具有该宽高比的所有分辨率
+                compatible_resolutions.sort(key=lambda x: (x[0] * x[1]), reverse=True) # 按像素总量（宽×高）降序排序
+                width, height = compatible_resolutions[0][:2] # 选择像素量最大的分辨率作为最佳分辨率
                 return width, height
 
             loguru.logger.debug('正在获取最佳分辨率')
@@ -205,7 +208,7 @@ class ProgramCoordinator:
             loguru.logger.info(f'最佳分辨率获取完成,最佳分辨率为: {best_width}x{best_height}')
             return best_width, best_height
 
-        resolution_mode: VideoResolution = cfg.get(cfg.video_resolution) # *
+        resolution_mode: VideoResolution = cfg.get(cfg.video_resolution) # 从配置中读取用户设置的分辨率模式（如自动/480P/720P等）
         match resolution_mode:
             case VideoResolution.Auto:
                 return get_best_resolution(video_info_list, video_orientation)
