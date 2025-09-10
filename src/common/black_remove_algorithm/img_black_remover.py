@@ -1,3 +1,5 @@
+# 在命令行使用类似功能（loguru、singalbus），需要移除所有 PySide6相关代码
+# 直接使用 print()输出到终端。用 logging模块替代 loguru记录日志
 from collections import Counter
 from pathlib import Path
 
