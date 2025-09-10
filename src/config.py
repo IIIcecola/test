@@ -18,7 +18,7 @@ if sys.getdefaultencoding() != 'utf-8':
 # # 确保环境变量LANG设置为UTF-8
 locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
 
-
+# 枚举类
 # 去黑边算法
 class BlackBorderAlgorithm(Enum):
     Disable = 0
@@ -172,6 +172,30 @@ class FFmpegValidator(ConfigValidator):
 
 
 class Config(QConfig):
+'''
+1. 基本配置项 (ConfigItem),获取时直接返回对应类型的值
+merge_video = ConfigItem(
+    "General",  # 分组
+    "是否合并视频",  # 界面显示名称
+    True,  # 默认值（布尔型）
+    BoolValidator()  # 验证器（确保值是True/False）
+)
+2. 选项配置项 (OptionsConfigItem),获取时返回枚举成员对象
+video_process_engine = OptionsConfigItem(
+    "General",
+    "视频处理引擎",
+    VideoProcessEngine.FFmpeg,  # 默认枚举成员
+    OptionsValidator(VideoProcessEngine),  # 验证输入是否有效枚举
+    EnumSerializer(VideoProcessEngine)  # 如何保存/加载枚举
+)
+3. 范围配置项 (RangeConfigItem),用于数值型配置
+video_fps = RangeConfigItem(
+    "Video",
+    "目标帧率",
+    30,  # 默认值
+    RangeValidator(1, 144)  # 验证范围1-144
+)
+'''
     # 全局设置
     ffmpeg_file = ConfigItem("General", "FFmpeg路径", str(FFMPEG_FILE), FFmpegValidator())
     temp_dir = ConfigItem("General", "临时目录", str(TEMP_DIR), FolderValidator())
@@ -229,8 +253,8 @@ class Config(QConfig):
 
 
 
-cfg = Config()
-cfg.file = CONFIG_FILE
+cfg = Config() # 创建配置对象
+cfg.file = CONFIG_FILE # 设置配置文件路径
 if not CONFIG_FILE.exists():
-    cfg.save()
-qconfig.load(CONFIG_FILE, cfg)
+    cfg.save() # 创建默认配置文件
+qconfig.load(CONFIG_FILE, cfg) # 加载配置
